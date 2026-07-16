@@ -12,11 +12,13 @@ class Database
     public static function getConnection(): PDO
     {
         if (self::$instance === null) {
-            $host = '127.0.0.1';
+            // --- Updated Credentials Here ---
+            $host = 'mysql-db';
             $port = '3306';
-            $name = 'u350554738_ramom';
-            $user = 'u350554738_ramom';
-            $pass = ';X8wFEjw=r';
+            $name = 'ramom';
+            $user = 'kkwebmart';
+            $pass = 'GmiJeAqNchkODZtHCvj09b2YtIEp';
+            // --------------------------------
 
             $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
@@ -33,4 +35,14 @@ class Database
 
         return self::$instance;
     }
+}
+// ==========================================
+// DB CONNECTION TEST CODE
+// ==========================================
+try {
+    $db = Database::getConnection();
+    echo "✅ Success! Database sahi se kaam kar raha hai aur connect ho gaya.";
+} catch (PDOException $e) {
+    echo "❌ Error! Database connect nahi hua.<br><br>";
+    echo "<strong>Reason:</strong> " . $e->getMessage();
 }
