@@ -483,12 +483,24 @@ class StudentController
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
+            $fetchPaymentStmt = $db->prepare("
+                SELECT fph.*, fph.type_id AS fee_type_id, ft.name AS fee_type_name, fg.name AS group_name
+                FROM fee_payment_history fph
+                JOIN fee_allocation fa ON fa.id = fph.allocation_id
+                JOIN fees_type ft ON ft.id = fph.type_id
+                JOIN fee_groups fg ON fg.id = fa.group_id
+                WHERE fph.id = ?
+            ");
+
             $insertTxnStmt = $db->prepare("
                 INSERT INTO transactions (account_id, voucher_head_id, type, category, ref, amount, dr, cr, bal, date, pay_via, description, attachments, branch_id, system)
                 VALUES (?, ?, 'income', 'fee_collection', ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, 1)
             ");
 
             $updateBalStmt = $db->prepare("UPDATE accounts SET balance = balance + ?, updated_at = NOW() WHERE id = ? AND branch_id = ?");
+
+            $insertedPayments = [];
+            $accountingWarnings = [];
 
             foreach ($payments as $payment) {
                 $insertStmt->execute([
@@ -501,6 +513,10 @@ class StudentController
                     $payment['remarks'] ?? '',
                     $payment['date'] ?? date('Y-m-d'),
                 ]);
+
+                $paymentId = (int)$db->lastInsertId();
+                $fetchPaymentStmt->execute([$paymentId]);
+                $insertedPayments[] = $fetchPaymentStmt->fetch();
 
                 $allocStmt = $db->prepare("SELECT branch_id, student_id FROM fee_allocation WHERE id = ?");
                 $allocStmt->execute([$payment['allocation_id']]);
@@ -538,12 +554,20 @@ class StudentController
                         ]);
 
                         $updateBalStmt->execute([$netAmount, $account['id'], $branchId]);
+                    } else {
+                        $accountingWarnings[] = "No account found for branch {$branchId}; payment recorded without accounting entry";
                     }
+                } else {
+                    $accountingWarnings[] = "Allocation #{$payment['allocation_id']} has no branch; payment recorded without accounting entry";
                 }
             }
 
             $db->commit();
-            $response->getBody()->write(json_encode(['success' => true, 'count' => count($payments)]));
+            $result = ['success' => true, 'count' => count($payments), 'transactions' => $insertedPayments];
+            if (!empty($accountingWarnings)) {
+                $result['accounting_warnings'] = $accountingWarnings;
+            }
+            $response->getBody()->write(json_encode($result));
             return $response->withHeader('Content-Type', 'application/json');
         } catch (\Exception $e) {
             $db->rollBack();
