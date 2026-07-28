@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Config;
-
+//check
 use PDO;
 use PDOException;
 
