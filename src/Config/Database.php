@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Config;
-//check update
+
 use PDO;
 use PDOException;
 
@@ -31,3 +31,4 @@ class Database
         return self::$instance;
     }
 }
+//check 
